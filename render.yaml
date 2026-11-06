@@ -1,0 +1,29 @@
+# Render deployment — ARCH-02 §2.7.
+# Buyer-owned free web service. The chat widget is served from the same
+# service: one deployment, one URL, no second hosting account.
+# COLD START (must be disclosed): Render free services spin down after
+# ~15 minutes idle; the first request then takes 30–60 s. Paid fix:
+# Render Starter $7/month (always on).
+services:
+  - type: web
+    name: rag-assistant
+    runtime: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn -w 1 -b 0.0.0.0:$PORT "app.server:create_app()"
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.3
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: QDRANT_URL
+        sync: false
+      - key: QDRANT_API_KEY
+        sync: false
+      - key: TELEGRAM_BOT_TOKEN
+        sync: false
+      - key: TELEGRAM_WEBHOOK_SECRET
+        sync: false
+      - key: ADMIN_TOKEN
+        sync: false
+        # The service refuses admin access when ADMIN_TOKEN is unset
+        # (fail-closed). Set it in the Render dashboard, never in git.

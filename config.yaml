@@ -1,0 +1,73 @@
+# config.yaml — per-buyer configuration for Product 2 (AI Knowledge Assistant)
+# NEVER put secrets here. Secrets live in environment variables only:
+#   OPENAI_API_KEY, QDRANT_API_KEY, QDRANT_URL, TELEGRAM_BOT_TOKEN,
+#   ADMIN_TOKEN, TELEGRAM_WEBHOOK_SECRET
+# The chat model name lives here (config only) — never hard-code a model
+# in code. NOTE: gpt-4o-mini is deprecated 14 Jan 2027 (ARCH-02 §2.4);
+# verify the current low-cost chat model against OpenAI's pricing/docs
+# on the day of delivery and set llm_model accordingly.
+
+buyer_slug: "saffron-sage"        # used for the Qdrant collection kb_<slug>
+tier: "basic"                    # basic | plus100 | plus250
+tier_doc_limit: 50               # Basic <= 50 docs; +$100 <= 500 (ARCH-02 M9)
+
+# --- Embedding (primary path: buyer's OpenAI key) ---
+embedding:
+  provider: "openai"             # openai | local (local = test fallback only)
+  openai_model: "text-embedding-3-small"
+  dimensions: 1536
+  local_model: "paraphrase-multilingual-MiniLM-L12-v2"  # sentence-transformers fallback
+  normalize_input: false         # EVIDENCED DEVIATION from ARCH-02 §3.1 (see
+                                 # BUILD-REPORT.md §5): the local MiniLM model
+                                 # embeds RAW text far better than normalised
+                                 # text (diagnostic on this corpus: Recall@3
+                                 # 0.95 raw vs 0.85 normalised; top-1 18/20 vs
+                                 # 14/20). Normalisation still applies to BM25
+                                 # (text_norm payload). RE-VERIFY with OpenAI
+                                 # text-embedding-3-small at first delivery —
+                                 # the result may differ per embedding model.
+                                 # Set true only with measured evidence.
+
+# --- Generation (model name is data, not code) ---
+llm_model: "gpt-4o-mini"         # DELIVERY-TIME DEFAULT ONLY — re-verify at delivery;
+                                 # do NOT ship after 14 Jan 2027 without re-checking.
+llm_temperature: 0.0             # grounded answers: deterministic
+
+# --- Retrieval ---
+retrieval:
+  dense_top_k: 20                # dense candidates before fusion
+  bm25_top_k: 20                 # BM25 candidates before fusion
+  rrf_k: 60                      # Reciprocal Rank Fusion constant (ARCH-02 §3.2)
+  final_top_k: 8                 # chunks stuffed into the prompt
+  refusal_threshold: 0.30        # min fused score (dense cosine) to answer at all;
+                                 # tuned per delivery on the test set, recorded in the report
+  rerank_enabled: false          # default OFF — NOT in Basic (ARCH-02 §3.2).
+                                 # Cross-encoder cannot run credibly on Render free
+                                 # (512 MB / 0.1 CPU). Enable only on buyer-funded
+                                 # hosting >= 1 GB RAM or a verified API reranker.
+
+# --- Chunking (ARCH-02 §6.2) ---
+chunking:
+  target_chars: 1800             # ~500-800 tokens; Arabic tokens are denser, so the
+                                 # template measures by characters and records the
+                                 # actual token distribution in the accuracy report
+  overlap_chars: 400             # ~100-150 tokens (one sentence)
+  max_chars_hard_cap: 3000
+
+# --- Service limits ---
+limits:
+  max_question_chars: 1000
+  rate_limit_per_minute_per_ip: 30
+  daily_question_cap: 1000
+
+# --- Channels ---
+channels:
+  widget: true
+  telegram: false                # +$100 tier
+  telegram_owner_chat_id: ""     # set at delivery for M16 escalation (Telegram only)
+
+# --- Qdrant ---
+qdrant:
+  collection: "kb_saffron-sage"  # kb_<buyer-slug>; overridden per buyer
+  url_env: "QDRANT_URL"          # unset => local in-memory mode (tests only)
+  distance: "Cosine"
